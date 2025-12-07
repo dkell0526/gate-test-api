@@ -1,6 +1,6 @@
 // pages/api/gate/ack.js
 
-import { setLastAck, lastAck, setLastCommand } from '../../../lib/gateState';
+import { setLastAck, lastAck } from '../../../lib/gateState';
 
 function checkAuth(req, res) {
   const auth = req.headers.authorization || '';

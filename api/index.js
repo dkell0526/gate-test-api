@@ -1,6 +1,6 @@
-// pages/api/gate.js
+// api/gate/index.js
 
-import { lastCommand, lastAck, setLastCommand } from '../../lib/gateState';
+import { lastCommand, lastAck, setLastCommand } from '../../lib/gateState.js';
 
 function checkAuth(req, res) {
   const auth = req.headers.authorization || '';
@@ -17,17 +17,15 @@ export default function handler(req, res) {
   if (!checkAuth(req, res)) return;
 
   if (req.method === 'GET') {
-    // Status endpoint for ESP32 + Wix
     return res.status(200).json({
       ok: true,
       message: 'gate backend alive',
       lastCommand,
-      lastAck,        // 🔴 new field
+      lastAck,
     });
   }
 
   if (req.method === 'POST') {
-    // Issue a new command (currently only 'open')
     const { type } = req.body || {};
 
     if (type !== 'open') {
@@ -37,6 +35,7 @@ export default function handler(req, res) {
     }
 
     const id = (lastCommand.id || 0) + 1;
+
     const cmd = {
       id,
       type,

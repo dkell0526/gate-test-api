@@ -1,51 +1,58 @@
-// api/gate.js
+// pages/api/gate.js
 
-// Simple in-memory state (resets on each cold start / redeploy)
-let lastCommand = {
-  id: 0,
-  type: null,
-  at: null
-};
+import { lastCommand, lastAck, setLastCommand } from '../../lib/gateState';
 
-export default async function handler(req, res) {
-  // Check Authorization header: "Bearer <API_KEY>"
-  const auth = req.headers.authorization || "";
-  const expected = `Bearer ${process.env.API_KEY}`;
+function checkAuth(req, res) {
+  const auth = req.headers.authorization || '';
+  const expected = `Bearer ${process.env.GATE_API_KEY}`;
 
   if (auth !== expected) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
+    res.status(401).json({ ok: false, error: 'unauthorized' });
+    return false;
   }
+  return true;
+}
 
-  if (req.method === "POST") {
-    const body = req.body || {};
+export default function handler(req, res) {
+  if (!checkAuth(req, res)) return;
 
-    if (body.action === "open") {
-      // Record a new command
-      lastCommand.id += 1;
-      lastCommand.type = "open";
-      lastCommand.at = new Date().toISOString();
-
-      console.log("Gate command received:", body, "as id", lastCommand.id);
-
-      return res.status(200).json({
-        ok: true,
-        received: "open",
-        commandId: lastCommand.id,
-        at: lastCommand.at
-      });
-    }
-
-    return res.status(400).json({ ok: false, error: "Unknown action" });
-  }
-
-  if (req.method === "GET") {
-    // Handy for debugging in browser and later for ESP32 polling
+  if (req.method === 'GET') {
+    // Status endpoint for ESP32 + Wix
     return res.status(200).json({
       ok: true,
-      message: "gate backend alive",
-      lastCommand
+      message: 'gate backend alive',
+      lastCommand,
+      lastAck,        // 🔴 new field
     });
   }
 
-  return res.status(405).json({ ok: false, error: "Method not allowed" });
+  if (req.method === 'POST') {
+    // Issue a new command (currently only 'open')
+    const { type } = req.body || {};
+
+    if (type !== 'open') {
+      return res
+        .status(400)
+        .json({ ok: false, error: 'unsupported command type' });
+    }
+
+    const id = (lastCommand.id || 0) + 1;
+    const cmd = {
+      id,
+      type,
+      at: new Date().toISOString(),
+    };
+
+    setLastCommand(cmd);
+
+    return res.status(200).json({
+      ok: true,
+      lastCommand: cmd,
+    });
+  }
+
+  res.setHeader('Allow', 'GET, POST');
+  return res
+    .status(405)
+    .json({ ok: false, error: `method ${req.method} not allowed` });
 }

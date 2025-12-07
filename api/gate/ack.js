@@ -1,6 +1,6 @@
-// pages/api/gate/ack.js
+// api/gate/ack.js
 
-import { setLastAck, lastAck } from '../../../lib/gateState';
+import { setLastAck } from '../../lib/gateState.js';
 
 function checkAuth(req, res) {
   const auth = req.headers.authorization || '';
@@ -19,22 +19,24 @@ export default function handler(req, res) {
   if (req.method === 'POST') {
     let body = req.body || {};
 
-    // If content-type isn't parsed to object, try JSON parse
+    // If body was not auto-parsed
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ ok: false, error: 'invalid JSON body' });
+      } catch (err) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Invalid JSON body',
+        });
       }
     }
 
     const commandId = Number(body.commandId);
     if (!Number.isFinite(commandId) || commandId <= 0) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'invalid commandId' });
+      return res.status(400).json({
+        ok: false,
+        error: 'Invalid commandId',
+      });
     }
 
     const ack = {

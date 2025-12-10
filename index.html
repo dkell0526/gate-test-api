@@ -167,4 +167,196 @@
       <button id="openButton">Open Gate</button>
 
       <div class="hint">
-        Tip: On iPhone, use
+        Tip: On iPhone, use “Add to Home Screen” in Safari to make this feel like an app.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = "dk_gate_123_super_secret_foo_bar"; // <-- replace with your actual API key
+    const API_URL = "/api/gate";
+
+    const pinSection = document.getElementById("pinSection");
+    const appSection = document.getElementById("appSection");
+    const pinInput = document.getElementById("pinInput");
+    const pinButton = document.getElementById("pinButton");
+
+    const statusPanel = document.getElementById("statusPanel");
+    const statusTextEl = document.getElementById("statusText");
+    const lastCommandLine = document.getElementById("lastCommandLine");
+    const lastAckLine = document.getElementById("lastAckLine");
+    const errorBox = document.getElementById("errorBox");
+    const openButton = document.getElementById("openButton");
+
+    let cooldownActive = false;
+    let currentPin = null;
+
+    function setError(msg) {
+      if (!msg) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+        return;
+      }
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    function showPinSection() {
+      pinSection.style.display = "block";
+      appSection.style.display = "none";
+      openButton.disabled = true;
+    }
+
+    function showAppSection() {
+      pinSection.style.display = "none";
+      appSection.style.display = "block";
+      // Button will be enabled/disabled based on cooldown in status
+    }
+
+    function updateUIFromStatus(data) {
+      cooldownActive = !!data.cooldownActive;
+
+      statusTextEl.textContent = data.statusText || "Unknown";
+
+      if (data.lastCommand && data.lastCommand.at) {
+        const t = new Date(data.lastCommand.at);
+        lastCommandLine.textContent = "Last command: " + t.toLocaleString();
+      } else {
+        lastCommandLine.textContent = "";
+      }
+
+      if (data.lastAck && data.lastAck.at) {
+        const t = new Date(data.lastAck.at);
+        lastAckLine.textContent = "Last ACK: " + t.toLocaleString();
+      } else {
+        lastAckLine.textContent = "";
+      }
+
+      if (cooldownActive) {
+        statusPanel.classList.add("cooldown");
+        openButton.disabled = true;
+      } else {
+        statusPanel.classList.remove("cooldown");
+        openButton.disabled = false;
+      }
+    }
+
+    async function fetchStatus() {
+      try {
+        setError(null);
+        const res = await fetch(API_URL, {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + API_KEY,
+          },
+        });
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error(data.error || "backend error");
+        }
+        updateUIFromStatus(data);
+      } catch (err) {
+        console.error(err);
+        setError("Error fetching gate status.");
+        statusTextEl.textContent = "Unknown";
+        openButton.disabled = true;
+      }
+    }
+
+    async function sendOpen() {
+      if (!currentPin) {
+        setError("Enter your PIN to unlock controls.");
+        showPinSection();
+        return;
+      }
+
+      openButton.disabled = true;
+      setError(null);
+      statusTextEl.textContent = "Sending open command...";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + API_KEY,
+          },
+          body: JSON.stringify({ type: "open", pin: currentPin }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.status === 403 || data.error === "invalid pin") {
+          // PIN was wrong
+          localStorage.removeItem("gatePin");
+          currentPin = null;
+          showPinSection();
+          setError("PIN incorrect. Please try again.");
+          statusTextEl.textContent = "PIN required";
+          return;
+        }
+
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || "open failed");
+        }
+
+        statusTextEl.textContent = "Open command sent!";
+        updateUIFromStatus(data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to send open command.");
+        statusTextEl.textContent = "Error sending command";
+      } finally {
+        // Let polling re-enable button if no cooldown
+      }
+    }
+
+    function handlePinSubmit() {
+      const value = (pinInput.value || "").trim();
+      if (!value) {
+        setError("Please enter your PIN.");
+        return;
+      }
+      // Save locally and show app. Real validation happens on first open attempt.
+      currentPin = value;
+      localStorage.setItem("gatePin", value);
+      pinInput.value = "";
+      setError(null);
+      showAppSection();
+      // Start status polling (if not already)
+      fetchStatus();
+    }
+
+    pinButton.addEventListener("click", handlePinSubmit);
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        handlePinSubmit();
+      }
+    });
+
+    openButton.addEventListener("click", sendOpen);
+
+    // Initial setup
+    (function init() {
+      const savedPin = localStorage.getItem("gatePin");
+      if (savedPin) {
+        currentPin = savedPin;
+        showAppSection();
+        fetchStatus();
+      } else {
+        showPinSection();
+      }
+
+      // Periodic status polling
+      setInterval(() => {
+        if (appSection.style.display !== "none") {
+          fetchStatus();
+        }
+      }, 5000);
+    })();
+  </script>
+</body>
+</html>

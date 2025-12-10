@@ -104,142 +104,67 @@
       text-align: center;
       color: #64748b;
     }
+    .pin-input-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .pin-input-row input {
+      flex: 1;
+      border-radius: 999px;
+      border: 1px solid #1e293b;
+      padding: 0.5rem 0.75rem;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 1rem;
+      outline: none;
+    }
+    .pin-input-row input::placeholder {
+      color: #4b5563;
+    }
+    .pin-btn {
+      flex: 0 0 auto;
+      width: auto;
+      padding-inline: 1rem;
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Driveway Gate</h1>
 
-    <div id="statusPanel" class="panel">
-      <div class="label">Status</div>
-      <div id="statusText" class="status-main">Checking gate status...</div>
-      <div class="meta">
-        <div id="lastCommandLine"></div>
-        <div id="lastAckLine"></div>
+    <!-- PIN SECTION -->
+    <div id="pinSection" class="panel">
+      <div class="label">Enter PIN</div>
+      <div class="status-main">Unlock gate controls</div>
+      <div class="pin-input-row">
+        <input
+          id="pinInput"
+          type="password"
+          inputmode="numeric"
+          autocomplete="off"
+          placeholder="4-digit PIN"
+        />
+        <button id="pinButton" class="pin-btn">Unlock</button>
       </div>
+      <div class="meta">Your PIN is checked on the server and never stored in the page source.</div>
     </div>
 
-    <div id="errorBox" class="error" style="display:none;"></div>
+    <!-- MAIN APP SECTION -->
+    <div id="appSection" style="display:none;">
+      <div id="statusPanel" class="panel">
+        <div class="label">Status</div>
+        <div id="statusText" class="status-main">Checking gate status...</div>
+        <div class="meta">
+          <div id="lastCommandLine"></div>
+          <div id="lastAckLine"></div>
+        </div>
+      </div>
 
-    <button id="openButton">Open Gate</button>
+      <div id="errorBox" class="error" style="display:none;"></div>
 
-    <div class="hint">
-      Tip: On iPhone, use “Add to Home Screen” in Safari to make this feel like an app.
-    </div>
-  </div>
+      <button id="openButton">Open Gate</button>
 
-  <script>
-    const API_KEY = "dk_gate_123_super_secret_foo_bar"; // <-- set this to your env value
-    const API_URL = "/api/gate";
-
-    const statusPanel = document.getElementById("statusPanel");
-    const statusTextEl = document.getElementById("statusText");
-    const lastCommandLine = document.getElementById("lastCommandLine");
-    const lastAckLine = document.getElementById("lastAckLine");
-    const errorBox = document.getElementById("errorBox");
-    const openButton = document.getElementById("openButton");
-
-    let cooldownActive = false;
-
-    function setError(msg) {
-      if (!msg) {
-        errorBox.style.display = "none";
-        errorBox.textContent = "";
-        return;
-      }
-      errorBox.textContent = msg;
-      errorBox.style.display = "block";
-    }
-
-    function updateUIFromStatus(data) {
-      cooldownActive = !!data.cooldownActive;
-
-      statusTextEl.textContent = data.statusText || "Unknown";
-
-      if (data.lastCommand && data.lastCommand.at) {
-        const t = new Date(data.lastCommand.at);
-        lastCommandLine.textContent = "Last command: " + t.toLocaleString();
-      } else {
-        lastCommandLine.textContent = "";
-      }
-
-      if (data.lastAck && data.lastAck.at) {
-        const t = new Date(data.lastAck.at);
-        lastAckLine.textContent = "Last Response: " + t.toLocaleString();
-      } else {
-        lastAckLine.textContent = "";
-      }
-
-      if (cooldownActive) {
-        statusPanel.classList.add("cooldown");
-        openButton.disabled = true;
-      } else {
-        statusPanel.classList.remove("cooldown");
-        openButton.disabled = false;
-      }
-    }
-
-    async function fetchStatus() {
-      try {
-        setError(null);
-        const res = await fetch(API_URL, {
-          method: "GET",
-          headers: {
-            "Authorization": "Bearer " + API_KEY,
-          },
-        });
-        if (!res.ok) {
-          throw new Error("HTTP " + res.status);
-        }
-        const data = await res.json();
-        if (!data.ok) {
-          throw new Error(data.error || "backend error");
-        }
-        updateUIFromStatus(data);
-      } catch (err) {
-        console.error(err);
-        setError("Error fetching gate status.");
-        statusTextEl.textContent = "Unknown";
-        openButton.disabled = true;
-      }
-    }
-
-    async function sendOpen() {
-      openButton.disabled = true;
-      setError(null);
-      statusTextEl.textContent = "Sending open command...";
-
-      try {
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + API_KEY,
-          },
-          body: JSON.stringify({ type: "open" }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.ok === false) {
-          throw new Error(data.error || "open failed");
-        }
-
-        statusTextEl.textContent = "Open command sent!";
-        updateUIFromStatus(data);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to send open command.");
-        statusTextEl.textContent = "Error sending command";
-      } finally {
-        // Let polling re-enable button if no cooldown
-      }
-    }
-
-    openButton.addEventListener("click", sendOpen);
-
-    // Initial fetch & polling
-    fetchStatus();
-    setInterval(fetchStatus, 5000);
-  </script>
-</body>
-</html>
+      <div class="hint">
+        Tip: On iPhone, use

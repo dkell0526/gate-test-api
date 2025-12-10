@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Driveway Gate</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- PWA-ish stuff -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#22c55e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #020617;
+      color: #e5e7eb;
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 400px;
+      padding: 1.5rem;
+      box-sizing: border-box;
+    }
+    .panel {
+      border-radius: 1.25rem;
+      padding: 1rem;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      margin-bottom: 1rem;
+    }
+    .panel.cooldown {
+      background: #451a03;
+      border-color: #f59e0b66;
+    }
+    h1 {
+      text-align: center;
+      margin: 0 0 1rem 0;
+      font-size: 1.5rem;
+    }
+    .label {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-bottom: 0.25rem;
+    }
+    .status-main {
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
+    .meta {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .error {
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+      color: #fecaca;
+      background: #7f1d1d;
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #fca5a5;
+    }
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #22c55e;
+      color: #020617;
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.1s ease, opacity 0.1s ease;
+      box-shadow: 0 10px 30px rgba(34, 197, 94, 0.25);
+    }
+    button:hover {
+      background: #4ade80;
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      background: #1e293b;
+      color: #9ca3af;
+    }
+    .hint {
+      margin-top: 0.75rem;
+      font-size: 0.7rem;
+      text-align: center;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Driveway Gate</h1>
+
+    <div id="statusPanel" class="panel">
+      <div class="label">Status</div>
+      <div id="statusText" class="status-main">Checking gate status...</div>
+      <div class="meta">
+        <div id="lastCommandLine"></div>
+        <div id="lastAckLine"></div>
+      </div>
+    </div>
+
+    <div id="errorBox" class="error" style="display:none;"></div>
+
+    <button id="openButton">Open Gate</button>
+
+    <div class="hint">
+      Tip: On iPhone, use “Add to Home Screen” in Safari to make this feel like an app.
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = "dk_gate_123_super_secret_foo_bar"; // <-- set this to your env value
+    const API_URL = "/api/gate";
+
+    const statusPanel = document.getElementById("statusPanel");
+    const statusTextEl = document.getElementById("statusText");
+    const lastCommandLine = document.getElementById("lastCommandLine");
+    const lastAckLine = document.getElementById("lastAckLine");
+    const errorBox = document.getElementById("errorBox");
+    const openButton = document.getElementById("openButton");
+
+    let cooldownActive = false;
+
+    function setError(msg) {
+      if (!msg) {
+        errorBox.style.display = "none";
+        errorBox.textContent = "";
+        return;
+      }
+      errorBox.textContent = msg;
+      errorBox.style.display = "block";
+    }
+
+    function updateUIFromStatus(data) {
+      cooldownActive = !!data.cooldownActive;
+
+      statusTextEl.textContent = data.statusText || "Unknown";
+
+      if (data.lastCommand && data.lastCommand.at) {
+        const t = new Date(data.lastCommand.at);
+        lastCommandLine.textContent = "Last command: " + t.toLocaleString();
+      } else {
+        lastCommandLine.textContent = "";
+      }
+
+      if (data.lastAck && data.lastAck.at) {
+        const t = new Date(data.lastAck.at);
+        lastAckLine.textContent = "Last ACK: " + t.toLocaleString();
+      } else {
+        lastAckLine.textContent = "";
+      }
+
+      if (cooldownActive) {
+        statusPanel.classList.add("cooldown");
+        openButton.disabled = true;
+      } else {
+        statusPanel.classList.remove("cooldown");
+        openButton.disabled = false;
+      }
+    }
+
+    async function fetchStatus() {
+      try {
+        setError(null);
+        const res = await fetch(API_URL, {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + API_KEY,
+          },
+        });
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          throw new Error(data.error || "backend error");
+        }
+        updateUIFromStatus(data);
+      } catch (err) {
+        console.error(err);
+        setError("Error fetching gate status.");
+        statusTextEl.textContent = "Unknown";
+        openButton.disabled = true;
+      }
+    }
+
+    async function sendOpen() {
+      openButton.disabled = true;
+      setError(null);
+      statusTextEl.textContent = "Sending open command...";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + API_KEY,
+          },
+          body: JSON.stringify({ type: "open" }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || "open failed");
+        }
+
+        statusTextEl.textContent = "Open command sent!";
+        updateUIFromStatus(data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to send open command.");
+        statusTextEl.textContent = "Error sending command";
+      } finally {
+        // Let polling re-enable button if no cooldown
+      }
+    }
+
+    openButton.addEventListener("click", sendOpen);
+
+    // Initial fetch & polling
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>

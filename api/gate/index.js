@@ -97,6 +97,22 @@ export default async function handler(req, res) {
 
     // 1) OPEN command from page/app
     if (type === 'open') {
+      // ----- PIN CHECK -----
+      const expectedPin = process.env.GATE_PIN;
+      if (expectedPin) {
+        const userPin =
+          typeof body.pin === 'string'
+            ? body.pin
+            : String(body.pin ?? '');
+
+        if (userPin !== expectedPin) {
+          return res
+            .status(403)
+            .json({ ok: false, error: 'invalid pin' });
+        }
+      }
+      // ----------------------
+
       const newId = (lastCommand.id || 0) + 1;
       const cmd = {
         id: newId,
@@ -150,29 +166,4 @@ export default async function handler(req, res) {
           ack.cooldownMsRemaining = 0;
         }
       }
-      // ----------------------------
-
-      setLastAck(ack);
-
-      const status = buildStatus();
-
-      return res.status(200).json({
-        ok: true,
-        lastAck: ack,
-        lastCommand,
-        ...status,
-      });
-    }
-
-    // Anything else is unsupported
-    return res
-      .status(400)
-      .json({ ok: false, error: 'unsupported type (use "open" or "ack")' });
-  }
-
-  // ------- Method not allowed -------
-  res.setHeader('Allow', 'GET, POST');
-  return res
-    .status(405)
-    .json({ ok: false, error: `method ${req.method} not allowed` });
-}
+      // --------

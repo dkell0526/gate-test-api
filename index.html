@@ -165,7 +165,7 @@
 
       if (data.lastAck && data.lastAck.at) {
         const t = new Date(data.lastAck.at);
-        lastAckLine.textContent = "Last ACK: " + t.toLocaleString();
+        lastAckLine.textContent = "Last Response: " + t.toLocaleString();
       } else {
         lastAckLine.textContent = "";
       }

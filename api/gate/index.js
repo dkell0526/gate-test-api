@@ -1,11 +1,11 @@
 // api/gate/index.js
 
-import {
-  lastCommand,
-  lastAck,
+const {
+  getLastCommand,
+  getLastAck,
   setLastCommand,
-  setLastAck
-} from '../../lib/gateState.js';
+  setLastAck,
+} = require('../../lib/gateState.js');
 
 function checkAuth(req, res) {
   const header = req.headers.authorization || '';
@@ -32,7 +32,9 @@ function checkAuth(req, res) {
 }
 
 function buildStatus() {
-  // Compute cooldown based on lastAck.cooldownMsRemaining and time since lastAck.at
+  const lastCommand = getLastCommand();
+  const lastAck = getLastAck();
+
   let cooldownActive = false;
   let cooldownMsRemaining = 0;
 
@@ -59,10 +61,12 @@ function buildStatus() {
     cooldownActive,
     cooldownMsRemaining,
     statusText,
+    lastCommand,
+    lastAck,
   };
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (!checkAuth(req, res)) return;
 
   // ------- GET: status polling -------
@@ -72,8 +76,6 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       message: 'gate backend alive',
-      lastCommand,
-      lastAck,
       ...status,
     });
   }
@@ -113,7 +115,8 @@ export default async function handler(req, res) {
       }
       // ----------------------
 
-      const newId = (lastCommand.id || 0) + 1;
+      const prevCommand = getLastCommand();
+      const newId = (prevCommand?.id || 0) + 1;
       const cmd = {
         id: newId,
         type: 'open',
@@ -126,8 +129,6 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        lastCommand: cmd,
-        lastAck,
         ...status,
       });
     }
@@ -166,4 +167,27 @@ export default async function handler(req, res) {
           ack.cooldownMsRemaining = 0;
         }
       }
-      // --------
+      // ----------------------------
+
+      setLastAck(ack);
+
+      const status = buildStatus();
+
+      return res.status(200).json({
+        ok: true,
+        ...status,
+      });
+    }
+
+    // Anything else is unsupported
+    return res
+      .status(400)
+      .json({ ok: false, error: 'unsupported type (use "open" or "ack")' });
+  }
+
+  // ------- Method not allowed -------
+  res.setHeader('Allow', 'GET, POST');
+  return res
+    .status(405)
+    .json({ ok: false, error: `method ${req.method} not allowed` });
+};

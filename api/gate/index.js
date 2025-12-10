@@ -31,20 +31,54 @@ function checkAuth(req, res) {
   return true;
 }
 
+function buildStatus() {
+  // Compute cooldown based on lastAck.cooldownMsRemaining and time since lastAck.at
+  let cooldownActive = false;
+  let cooldownMsRemaining = 0;
+
+  if (lastAck && lastAck.at && typeof lastAck.cooldownMsRemaining === 'number') {
+    const ackTimeMs = new Date(lastAck.at).getTime();
+    const nowMs = Date.now();
+    const elapsed = nowMs - ackTimeMs;
+    const remaining = Math.max(lastAck.cooldownMsRemaining - elapsed, 0);
+
+    cooldownMsRemaining = remaining;
+    cooldownActive = !!lastAck.cooldown && remaining > 0;
+  }
+
+  let statusText = 'Gate idle';
+
+  if (cooldownActive) {
+    const sec = Math.ceil(cooldownMsRemaining / 1000);
+    statusText = `Gate in cooldown (${sec}s remaining)`;
+  } else if (lastCommand && lastCommand.type === 'open') {
+    statusText = 'Last command: OPEN';
+  }
+
+  return {
+    cooldownActive,
+    cooldownMsRemaining,
+    statusText,
+  };
+}
+
 export default async function handler(req, res) {
   if (!checkAuth(req, res)) return;
 
-  // ------- GET: Wix status polling -------
+  // ------- GET: status polling -------
   if (req.method === 'GET') {
+    const status = buildStatus();
+
     return res.status(200).json({
       ok: true,
       message: 'gate backend alive',
       lastCommand,
       lastAck,
+      ...status,
     });
   }
 
-  // ------- POST: open from Wix OR ack/cooldown from HomeNode -------
+  // ------- POST: open from frontend OR ack/cooldown from HomeNode -------
   if (req.method === 'POST') {
     let body = req.body || {};
 
@@ -61,7 +95,7 @@ export default async function handler(req, res) {
 
     const { type } = body;
 
-    // 1) OPEN command from Wix/page
+    // 1) OPEN command from page/app
     if (type === 'open') {
       const newId = (lastCommand.id || 0) + 1;
       const cmd = {
@@ -72,10 +106,13 @@ export default async function handler(req, res) {
 
       setLastCommand(cmd);
 
+      const status = buildStatus();
+
       return res.status(200).json({
         ok: true,
         lastCommand: cmd,
         lastAck,
+        ...status,
       });
     }
 
@@ -97,8 +134,6 @@ export default async function handler(req, res) {
       };
 
       // ---- COOLDOWN HANDLING ----
-      // If either "cooldown" or "cooldownMsRemaining" is present in the
-      // POST body, treat this as a cooldown-aware ACK.
       const hasCdFlag = Object.prototype.hasOwnProperty.call(body, 'cooldown');
       const hasCdMs   = Object.prototype.hasOwnProperty.call(body, 'cooldownMsRemaining');
 
@@ -119,10 +154,13 @@ export default async function handler(req, res) {
 
       setLastAck(ack);
 
+      const status = buildStatus();
+
       return res.status(200).json({
         ok: true,
         lastAck: ack,
         lastCommand,
+        ...status,
       });
     }
 

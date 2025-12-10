@@ -1,6 +1,11 @@
 // api/gate/index.js
 
-import { lastCommand, lastAck, setLastCommand, setLastAck } from '../../lib/gateState.js';
+import {
+  lastCommand,
+  lastAck,
+  setLastCommand,
+  setLastAck
+} from '../../lib/gateState.js';
 
 function checkAuth(req, res) {
   const header = req.headers.authorization || '';
@@ -29,6 +34,7 @@ function checkAuth(req, res) {
 export default async function handler(req, res) {
   if (!checkAuth(req, res)) return;
 
+  // ------- GET: Wix status polling -------
   if (req.method === 'GET') {
     return res.status(200).json({
       ok: true,
@@ -38,14 +44,18 @@ export default async function handler(req, res) {
     });
   }
 
+  // ------- POST: open from Wix OR ack/cooldown from HomeNode -------
   if (req.method === 'POST') {
     let body = req.body || {};
 
+    // Body may arrive as a string depending on Vercel config
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
-      } catch {
-        return res.status(400).json({ ok: false, error: 'invalid JSON body' });
+      } catch (e) {
+        return res
+          .status(400)
+          .json({ ok: false, error: 'invalid JSON body' });
       }
     }
 
@@ -53,9 +63,9 @@ export default async function handler(req, res) {
 
     // 1) OPEN command from Wix/page
     if (type === 'open') {
-      const id = (lastCommand.id || 0) + 1;
+      const newId = (lastCommand.id || 0) + 1;
       const cmd = {
-        id,
+        id: newId,
         type: 'open',
         at: new Date().toISOString(),
       };
@@ -65,36 +75,64 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         lastCommand: cmd,
+        lastAck,
       });
     }
 
-    // 2) ACK from ESP home node
+    // 2) ACK (and optional COOLDOWN) from Home Node
     if (type === 'ack') {
       const commandId = Number(body.commandId);
-      if (!Number.isFinite(commandId) || commandId <= 0) {
+
+      // Allow any integer (including -1 for LOCAL if you ever use it)
+      if (!Number.isInteger(commandId)) {
         return res
           .status(400)
           .json({ ok: false, error: 'invalid commandId for ack' });
       }
 
+      const nowIso = new Date().toISOString();
       const ack = {
         commandId,
-        at: new Date().toISOString(),
+        at: nowIso,
       };
+
+      // ---- COOLDOWN HANDLING ----
+      // If either "cooldown" or "cooldownMsRemaining" is present in the
+      // POST body, treat this as a cooldown-aware ACK.
+      const hasCdFlag = Object.prototype.hasOwnProperty.call(body, 'cooldown');
+      const hasCdMs   = Object.prototype.hasOwnProperty.call(body, 'cooldownMsRemaining');
+
+      if (hasCdFlag || hasCdMs) {
+        const msRaw = Number(body.cooldownMsRemaining);
+        const ms =
+          Number.isFinite(msRaw) && msRaw >= 0 ? msRaw : 0;
+
+        ack.cooldown = body.cooldown === true || ms > 0;
+
+        if (ms > 0) {
+          ack.cooldownMsRemaining = ms;
+        } else {
+          ack.cooldownMsRemaining = 0;
+        }
+      }
+      // ----------------------------
 
       setLastAck(ack);
 
       return res.status(200).json({
         ok: true,
         lastAck: ack,
+        lastCommand,
       });
     }
 
+    // Anything else is unsupported
     return res
       .status(400)
       .json({ ok: false, error: 'unsupported type (use "open" or "ack")' });
   }
 
+  // ------- Method not allowed -------
   res.setHeader('Allow', 'GET, POST');
   return res
     .status(405)

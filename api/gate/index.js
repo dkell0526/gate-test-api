@@ -5,6 +5,8 @@ const {
   getLastAck,
   setLastCommand,
   setLastAck,
+  addLog,
+  getLogs,
 } = require('../../lib/gateState.js');
 
 function checkAuth(req, res) {
@@ -16,13 +18,13 @@ function checkAuth(req, res) {
     return false;
   }
 
-  if (!process.env.API_KEY && !process.env.GATE_API_KEY) {
+  const expected = process.env.GATE_API_KEY || process.env.API_KEY;
+  if (!expected) {
     console.warn('API_KEY/GATE_API_KEY not set in env');
     res.status(500).json({ ok: false, error: 'server misconfigured' });
     return false;
   }
 
-  const expected = process.env.GATE_API_KEY || process.env.API_KEY;
   if (token !== expected) {
     res.status(401).json({ ok: false, error: 'unauthorized' });
     return false;
@@ -69,10 +71,18 @@ function buildStatus() {
 module.exports = async function handler(req, res) {
   if (!checkAuth(req, res)) return;
 
-  // ------- GET: status polling -------
+  // ---- GET ----
   if (req.method === 'GET') {
-    const status = buildStatus();
+    // Dev logs: GET /api/gate?view=log
+    const view = (req.query && req.query.view) ? String(req.query.view) : '';
+    if (view === 'log') {
+      return res.status(200).json({
+        ok: true,
+        logs: getLogs(),
+      });
+    }
 
+    const status = buildStatus();
     return res.status(200).json({
       ok: true,
       message: 'gate backend alive',
@@ -80,43 +90,40 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  // ------- POST: open from frontend OR ack/cooldown from HomeNode -------
+  // ---- POST ----
   if (req.method === 'POST') {
     let body = req.body || {};
 
-    // Body may arrive as a string depending on Vercel config
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
       } catch (e) {
-        return res
-          .status(400)
-          .json({ ok: false, error: 'invalid JSON body' });
+        return res.status(400).json({ ok: false, error: 'invalid JSON body' });
       }
     }
 
     const { type } = body;
+    const source = typeof body.source === 'string' ? body.source : 'unknown';
 
-    // 1) OPEN command from page/app
+    // OPEN
     if (type === 'open') {
-      // ----- PIN CHECK -----
+      // PIN required (if configured)
       const expectedPin = process.env.GATE_PIN;
       if (expectedPin) {
-        const userPin =
-          typeof body.pin === 'string'
-            ? body.pin
-            : String(body.pin ?? '');
-
+        const userPin = typeof body.pin === 'string' ? body.pin : String(body.pin ?? '');
         if (userPin !== expectedPin) {
-          return res
-            .status(403)
-            .json({ ok: false, error: 'invalid pin' });
+          addLog({
+            event: 'open_rejected',
+            source,
+            reason: 'invalid_pin',
+          });
+          return res.status(403).json({ ok: false, error: 'invalid pin' });
         }
       }
-      // ----------------------
 
       const prevCommand = getLastCommand();
       const newId = (prevCommand?.id || 0) + 1;
+
       const cmd = {
         id: newId,
         type: 'open',
@@ -125,69 +132,59 @@ module.exports = async function handler(req, res) {
 
       setLastCommand(cmd);
 
-      const status = buildStatus();
-
-      return res.status(200).json({
-        ok: true,
-        ...status,
+      addLog({
+        event: 'open',
+        source,
+        commandId: cmd.id,
       });
+
+      const status = buildStatus();
+      return res.status(200).json({ ok: true, ...status });
     }
 
-    // 2) ACK (and optional COOLDOWN) from Home Node
+    // ACK
     if (type === 'ack') {
       const commandId = Number(body.commandId);
-
-      // Allow any integer (including -1 for LOCAL if you ever use it)
       if (!Number.isInteger(commandId)) {
-        return res
-          .status(400)
-          .json({ ok: false, error: 'invalid commandId for ack' });
+        return res.status(400).json({ ok: false, error: 'invalid commandId for ack' });
       }
 
-      const nowIso = new Date().toISOString();
       const ack = {
         commandId,
-        at: nowIso,
+        at: new Date().toISOString(),
       };
 
-      // ---- COOLDOWN HANDLING ----
-      const hasCdFlag = Object.prototype.hasOwnProperty.call(body, 'cooldown');
-      const hasCdMs   = Object.prototype.hasOwnProperty.call(body, 'cooldownMsRemaining');
+      // Optional cooldown info
+      const msRaw = Number(body.cooldownMsRemaining);
+      const ms = Number.isFinite(msRaw) && msRaw >= 0 ? msRaw : 0;
+      const cooldown = body.cooldown === true || ms > 0;
 
-      if (hasCdFlag || hasCdMs) {
-        const msRaw = Number(body.cooldownMsRemaining);
-        const ms =
-          Number.isFinite(msRaw) && msRaw >= 0 ? msRaw : 0;
-
-        ack.cooldown = body.cooldown === true || ms > 0;
-
-        if (ms > 0) {
-          ack.cooldownMsRemaining = ms;
-        } else {
-          ack.cooldownMsRemaining = 0;
-        }
-      }
-      // ----------------------------
+      ack.cooldown = cooldown;
+      ack.cooldownMsRemaining = ms;
 
       setLastAck(ack);
 
-      const status = buildStatus();
+      // Optional RF metrics if you want to send them later
+      const rssi = (body.rssi !== undefined) ? Number(body.rssi) : undefined;
+      const snr  = (body.snr  !== undefined) ? Number(body.snr)  : undefined;
 
-      return res.status(200).json({
-        ok: true,
-        ...status,
+      addLog({
+        event: 'ack',
+        source,
+        commandId,
+        cooldown,
+        cooldownMsRemaining: ms,
+        ...(Number.isFinite(rssi) ? { rssi } : {}),
+        ...(Number.isFinite(snr) ? { snr } : {}),
       });
+
+      const status = buildStatus();
+      return res.status(200).json({ ok: true, ...status });
     }
 
-    // Anything else is unsupported
-    return res
-      .status(400)
-      .json({ ok: false, error: 'unsupported type (use "open" or "ack")' });
+    return res.status(400).json({ ok: false, error: 'unsupported type (use "open" or "ack")' });
   }
 
-  // ------- Method not allowed -------
   res.setHeader('Allow', 'GET, POST');
-  return res
-    .status(405)
-    .json({ ok: false, error: `method ${req.method} not allowed` });
+  return res.status(405).json({ ok: false, error: `method ${req.method} not allowed` });
 };

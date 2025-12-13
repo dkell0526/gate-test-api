@@ -5,7 +5,6 @@
   <title>Driveway Gate</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- PWA-ish stuff -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#22c55e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,123 +12,39 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
   <style>
-    :root {
-      color-scheme: dark;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    body {
-      margin: 0;
-      background: #020617;
-      color: #e5e7eb;
-      display: flex;
-      min-height: 100vh;
-      align-items: center;
-      justify-content: center;
-    }
-    .card {
-      width: 100%;
-      max-width: 400px;
-      padding: 1.5rem;
-      box-sizing: border-box;
-    }
-    .panel {
-      border-radius: 1.25rem;
-      padding: 1rem;
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      margin-bottom: 1rem;
-    }
-    .panel.cooldown {
-      background: #451a03;
-      border-color: #f59e0b66;
-    }
-    h1 {
-      text-align: center;
-      margin: 0 0 1rem 0;
-      font-size: 1.5rem;
-    }
-    .label {
-      font-size: 0.8rem;
-      color: #9ca3af;
-      margin-bottom: 0.25rem;
-    }
-    .status-main {
-      font-size: 1.05rem;
-      font-weight: 500;
-    }
-    .meta {
-      margin-top: 0.5rem;
-      font-size: 0.75rem;
-      color: #9ca3af;
-    }
-    .error {
-      margin-bottom: 0.75rem;
-      font-size: 0.8rem;
-      color: #fecaca;
-      background: #7f1d1d;
-      border-radius: 0.75rem;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #fca5a5;
-    }
-    button {
-      width: 100%;
-      border: none;
-      border-radius: 999px;
-      padding: 0.75rem 1rem;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: #22c55e;
-      color: #020617;
-      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.1s ease, opacity 0.1s ease;
-      box-shadow: 0 10px 30px rgba(34, 197, 94, 0.25);
-    }
-    button:hover {
-      background: #4ade80;
-    }
-    button:active {
-      transform: translateY(1px);
-      box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      box-shadow: none;
-      background: #1e293b;
-      color: #9ca3af;
-    }
-    .hint {
-      margin-top: 0.75rem;
-      font-size: 0.7rem;
-      text-align: center;
-      color: #64748b;
-    }
-    .pin-input-row {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-    .pin-input-row input {
-      flex: 1;
-      border-radius: 999px;
-      border: 1px solid #1e293b;
-      padding: 0.5rem 0.75rem;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 1rem;
-      outline: none;
-    }
-    .pin-input-row input::placeholder {
-      color: #4b5563;
-    }
-    .pin-btn {
-      flex: 0 0 auto;
-      width: auto;
-      padding-inline: 1rem;
-      box-shadow: none;
-    }
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #020617; color: #e5e7eb; display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+    .card { width: 100%; max-width: 420px; padding: 1.5rem; box-sizing: border-box; }
+    .panel { border-radius: 1.25rem; padding: 1rem; background: #0f172a; border: 1px solid #1e293b; margin-bottom: 1rem; }
+    .panel.cooldown { background: #451a03; border-color: #f59e0b66; }
+    h1 { text-align: center; margin: 0 0 1rem 0; font-size: 1.5rem; }
+    .label { font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.25rem; }
+    .status-main { font-size: 1.05rem; font-weight: 500; }
+    .meta { margin-top: 0.5rem; font-size: 0.75rem; color: #9ca3af; }
+    .error { margin-bottom: 0.75rem; font-size: 0.8rem; color: #fecaca; background: #7f1d1d; border-radius: 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid #fca5a5; }
+    button { width: 100%; border: none; border-radius: 999px; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 600; cursor: pointer; background: #22c55e; color: #020617; transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.1s ease, opacity 0.1s ease; box-shadow: 0 10px 30px rgba(34, 197, 94, 0.25); }
+    button:hover { background: #4ade80; }
+    button:active { transform: translateY(1px); box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; background: #1e293b; color: #9ca3af; }
+
+    .row { display: flex; gap: 0.5rem; }
+    .row button { width: auto; flex: 1; box-shadow: none; }
+    .secondary { background: #1e293b; color: #e5e7eb; }
+    .secondary:hover { background: #334155; }
+    .hint { margin-top: 0.75rem; font-size: 0.7rem; text-align: center; color: #64748b; }
+    .pin-input-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .pin-input-row input { flex: 1; border-radius: 999px; border: 1px solid #1e293b; padding: 0.5rem 0.75rem; background: #020617; color: #e5e7eb; font-size: 1rem; outline: none; }
+    .pin-btn { flex: 0 0 auto; width: auto; padding-inline: 1rem; box-shadow: none; }
+
+    /* Logs */
+    .logs { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 12px; white-space: pre-wrap; line-height: 1.35; }
+    .log-item { border-top: 1px solid #1e293b; padding: 0.5rem 0; }
+    .log-item:first-child { border-top: none; }
+    .log-ts { color: #94a3b8; }
   </style>
 </head>
+
 <body>
   <div class="card">
     <h1>Driveway Gate</h1>
@@ -139,20 +54,14 @@
       <div class="label">Enter PIN</div>
       <div class="status-main">Unlock gate controls</div>
       <div class="pin-input-row">
-        <input
-          id="pinInput"
-          type="password"
-          inputmode="numeric"
-          autocomplete="off"
-          placeholder="4-digit PIN"
-        />
+        <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" />
         <button id="pinButton" class="pin-btn">Unlock</button>
       </div>
-      <div class="meta">Your PIN is checked on the server and never stored in the page source.</div>
+      <div class="meta">PIN is checked server-side.</div>
     </div>
 
     <!-- MAIN APP SECTION -->
-    <div id="appSection" style="display:none;">
+    <div id="mainSection" style="display:none;">
       <div id="statusPanel" class="panel">
         <div class="label">Status</div>
         <div id="statusText" class="status-main">Checking gate status...</div>
@@ -166,18 +75,38 @@
 
       <button id="openButton">Open Gate</button>
 
-      <div class="hint">
-        Tip: On iPhone, use “Add to Home Screen” in Safari to make this feel like an app.
+      <div class="row" style="margin-top:0.75rem;">
+        <button id="devButton" class="secondary">Dev</button>
+        <button id="lockButton" class="secondary">Lock</button>
+      </div>
+
+      <div class="hint">Tip: On iPhone, use “Add to Home Screen”.</div>
+    </div>
+
+    <!-- DEV LOGS SECTION -->
+    <div id="devSection" style="display:none;">
+      <div class="panel">
+        <div class="label">Dev Logs (last 50)</div>
+        <div class="row" style="margin-top:0.5rem;">
+          <button id="backButton" class="secondary">Back</button>
+          <button id="refreshLogsButton" class="secondary">Refresh</button>
+        </div>
+      </div>
+
+      <div id="logsPanel" class="panel logs">
+        Loading logs...
       </div>
     </div>
   </div>
 
   <script>
-    const API_KEY = "dk_gate_123_super_secret_foo_bar"; // <-- replace with your actual API key
+    const API_KEY = "dk_gate_123_super_secret_foo_bar";
     const API_URL = "/api/gate";
 
     const pinSection = document.getElementById("pinSection");
-    const appSection = document.getElementById("appSection");
+    const mainSection = document.getElementById("mainSection");
+    const devSection = document.getElementById("devSection");
+
     const pinInput = document.getElementById("pinInput");
     const pinButton = document.getElementById("pinButton");
 
@@ -187,6 +116,13 @@
     const lastAckLine = document.getElementById("lastAckLine");
     const errorBox = document.getElementById("errorBox");
     const openButton = document.getElementById("openButton");
+
+    const devButton = document.getElementById("devButton");
+    const lockButton = document.getElementById("lockButton");
+
+    const backButton = document.getElementById("backButton");
+    const refreshLogsButton = document.getElementById("refreshLogsButton");
+    const logsPanel = document.getElementById("logsPanel");
 
     let cooldownActive = false;
     let currentPin = null;
@@ -201,21 +137,27 @@
       errorBox.style.display = "block";
     }
 
-    function showPinSection() {
+    function showPin() {
       pinSection.style.display = "block";
-      appSection.style.display = "none";
+      mainSection.style.display = "none";
+      devSection.style.display = "none";
       openButton.disabled = true;
     }
 
-    function showAppSection() {
+    function showMain() {
       pinSection.style.display = "none";
-      appSection.style.display = "block";
-      // Button will be enabled/disabled based on cooldown in status
+      mainSection.style.display = "block";
+      devSection.style.display = "none";
+    }
+
+    function showDev() {
+      pinSection.style.display = "none";
+      mainSection.style.display = "none";
+      devSection.style.display = "block";
     }
 
     function updateUIFromStatus(data) {
       cooldownActive = !!data.cooldownActive;
-
       statusTextEl.textContent = data.statusText || "Unknown";
 
       if (data.lastCommand && data.lastCommand.at) {
@@ -246,17 +188,11 @@
         setError(null);
         const res = await fetch(API_URL, {
           method: "GET",
-          headers: {
-            "Authorization": "Bearer " + API_KEY,
-          },
+          headers: { "Authorization": "Bearer " + API_KEY },
         });
-        if (!res.ok) {
-          throw new Error("HTTP " + res.status);
-        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
-        if (!data.ok) {
-          throw new Error(data.error || "backend error");
-        }
+        if (!data.ok) throw new Error(data.error || "backend error");
         updateUIFromStatus(data);
       } catch (err) {
         console.error(err);
@@ -269,7 +205,7 @@
     async function sendOpen() {
       if (!currentPin) {
         setError("Enter your PIN to unlock controls.");
-        showPinSection();
+        showPin();
         return;
       }
 
@@ -284,24 +220,21 @@
             "Content-Type": "application/json",
             "Authorization": "Bearer " + API_KEY,
           },
-          body: JSON.stringify({ type: "open", pin: currentPin }),
+          body: JSON.stringify({ type: "open", pin: currentPin, source: "app" }),
         });
 
         const data = await res.json().catch(() => ({}));
 
         if (res.status === 403 || data.error === "invalid pin") {
-          // PIN was wrong
           localStorage.removeItem("gatePin");
           currentPin = null;
-          showPinSection();
+          showPin();
           setError("PIN incorrect. Please try again.");
           statusTextEl.textContent = "PIN required";
           return;
         }
 
-        if (!res.ok || data.ok === false) {
-          throw new Error(data.error || "open failed");
-        }
+        if (!res.ok || data.ok === false) throw new Error(data.error || "open failed");
 
         statusTextEl.textContent = "Open command sent!";
         updateUIFromStatus(data);
@@ -309,52 +242,100 @@
         console.error(err);
         setError("Failed to send open command.");
         statusTextEl.textContent = "Error sending command";
-      } finally {
-        // Let polling re-enable button if no cooldown
+      }
+    }
+
+    async function fetchLogs() {
+      logsPanel.textContent = "Loading logs...";
+      try {
+        const res = await fetch(API_URL + "?view=log", {
+          method: "GET",
+          headers: { "Authorization": "Bearer " + API_KEY },
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "backend error");
+
+        const logs = Array.isArray(data.logs) ? data.logs : [];
+        if (logs.length === 0) {
+          logsPanel.textContent = "No logs yet.";
+          return;
+        }
+
+        logsPanel.innerHTML = logs.map(l => {
+          const ts = l.ts ? new Date(l.ts).toLocaleString() : "";
+          const event = l.event || "";
+          const src = l.source || "";
+          const cmd = (l.commandId !== undefined) ? ` cmd=${l.commandId}` : "";
+          const cd = (l.cooldown === true) ? " cooldown=true" : "";
+          const cdms = (typeof l.cooldownMsRemaining === "number") ? ` cdMs=${l.cooldownMsRemaining}` : "";
+          const rssi = (typeof l.rssi === "number") ? ` rssi=${l.rssi}` : "";
+          const snr = (typeof l.snr === "number") ? ` snr=${l.snr}` : "";
+          const reason = l.reason ? ` reason=${l.reason}` : "";
+
+          return `
+            <div class="log-item">
+              <div class="log-ts">${ts}</div>
+              <div>${event} src=${src}${cmd}${cd}${cdms}${rssi}${snr}${reason}</div>
+            </div>
+          `;
+        }).join("");
+      } catch (err) {
+        console.error(err);
+        logsPanel.textContent = "Error loading logs.";
       }
     }
 
     function handlePinSubmit() {
       const value = (pinInput.value || "").trim();
-      if (!value) {
-        setError("Please enter your PIN.");
-        return;
-      }
-      // Save locally and show app. Real validation happens on first open attempt.
+      if (!value) { setError("Please enter your PIN."); return; }
       currentPin = value;
       localStorage.setItem("gatePin", value);
       pinInput.value = "";
       setError(null);
-      showAppSection();
-      // Start status polling (if not already)
+      showMain();
       fetchStatus();
     }
 
+    function lock() {
+      localStorage.removeItem("gatePin");
+      currentPin = null;
+      setError(null);
+      showPin();
+    }
+
     pinButton.addEventListener("click", handlePinSubmit);
-    pinInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        handlePinSubmit();
-      }
-    });
+    pinInput.addEventListener("keydown", (e) => { if (e.key === "Enter") handlePinSubmit(); });
 
     openButton.addEventListener("click", sendOpen);
 
-    // Initial setup
+    devButton.addEventListener("click", async () => {
+      showDev();
+      await fetchLogs();
+    });
+
+    backButton.addEventListener("click", () => {
+      showMain();
+    });
+
+    refreshLogsButton.addEventListener("click", fetchLogs);
+
+    lockButton.addEventListener("click", lock);
+
+    // init
     (function init() {
       const savedPin = localStorage.getItem("gatePin");
       if (savedPin) {
         currentPin = savedPin;
-        showAppSection();
+        showMain();
         fetchStatus();
       } else {
-        showPinSection();
+        showPin();
       }
 
-      // Periodic status polling
+      // Status polling only when on main page
       setInterval(() => {
-        if (appSection.style.display !== "none") {
-          fetchStatus();
-        }
+        if (mainSection.style.display !== "none") fetchStatus();
       }, 5000);
     })();
   </script>
